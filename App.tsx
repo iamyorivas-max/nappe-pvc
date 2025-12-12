@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { OrderState, Thickness, ShapeType, MaterialType, Dimensions, CustomerInfo, SHAPES, MATERIALS } from './types';
+import React, { useState, useRef, useEffect } from 'react';
+import { OrderState, Thickness, ShapeType, MaterialType, Dimensions, CustomerInfo } from './types';
 import Hero from './components/Hero';
 import PricingSection from './components/PricingSection';
 import ShapeSelector from './components/ShapeSelector';
@@ -8,7 +8,7 @@ import DimensionsForm from './components/DimensionsForm';
 import OrderForm from './components/OrderForm';
 import OrderSummary from './components/OrderSummary';
 import Footer from './components/Footer';
-import { calculateArea, formatPrice } from './utils';
+import { calculateArea } from './utils';
 
 const App: React.FC = () => {
   const [order, setOrder] = useState<OrderState>({
@@ -20,7 +20,6 @@ const App: React.FC = () => {
   });
   
   const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Refs for auto-scrolling
   const pricingRef = useRef<HTMLDivElement>(null);
@@ -72,54 +71,10 @@ const App: React.FC = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validateOrder()) return;
-
-    setIsSubmitting(true);
-
-    // Préparation des données pour l'email
-    const area = calculateArea(order.shape!, order.dimensions);
-    const totalPrice = area * (order.thickness?.price || 0);
-    const shapeLabel = SHAPES.find(s => s.id === order.shape)?.label || order.shape;
-    const materialLabel = MATERIALS.find(m => m.id === order.material)?.label || order.material;
-
-    // Construction d'une chaîne lisible pour les dimensions
-    const dimensionsStr = Object.entries(order.dimensions)
-      .map(([key, value]) => `${key}: ${value}cm`)
-      .join(', ');
-
-    const formData = {
-      ...order.customer,
-      Produit_Forme: shapeLabel,
-      Produit_Matiere: materialLabel,
-      Produit_Epaisseur: `${order.thickness?.value}mm (${order.thickness?.label})`,
-      Dimensions_Details: dimensionsStr,
-      Surface_Totale: `${area.toFixed(4)} m²`,
-      Prix_Total: formatPrice(totalPrice),
-      _subject: `Nouvelle commande de ${order.customer.fullName}`, // Sujet de l'email
-    };
-
-    try {
-      const response = await fetch("https://formspree.io/f/movgydnl", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        alert("Une erreur est survenue lors de l'envoi de la commande. Veuillez réessayer.");
-      }
-    } catch (error) {
-      console.error("Erreur d'envoi:", error);
-      alert("Erreur de connexion. Veuillez vérifier votre connexion internet.");
-    } finally {
-      setIsSubmitting(false);
+  const handleSubmit = () => {
+    if (validateOrder()) {
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -182,7 +137,6 @@ const App: React.FC = () => {
              onChange={handleCustomerChange} 
              onSubmit={handleSubmit} 
              isValid={validateOrder()} 
-             isSubmitting={isSubmitting}
            />
         </div>
       )}
